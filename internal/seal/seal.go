@@ -24,6 +24,9 @@ type Payload struct {
 	Exp          int64  `json:"e"`
 	JTI          string `json:"j"`
 	Sandbox      bool   `json:"sb,omitempty"`
+	// VAPIDKey, when set, is the canonical base64url P-256 public key of the
+	// application server allowed to send to this endpoint with VAPID auth.
+	VAPIDKey string `json:"vk,omitempty"`
 }
 
 type Service struct{ apps *app.Service }

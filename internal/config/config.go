@@ -49,6 +49,11 @@ type Config struct {
 	// WebPushAllowedHosts allowlists WebPush targets (hostnames/IPs/CIDRs);
 	// empty is the strict default.
 	WebPushAllowedHosts []string
+	// AllowVAPID lets devices bind an application server's VAPID public key to
+	// their endpoint at subscribe time, after which that server may send with
+	// RFC 8292 `Authorization: vapid` instead of an instance token. This makes
+	// PushPort a drop-in Web Push endpoint for unmodified Web Push senders.
+	AllowVAPID bool
 }
 
 func Load() (Config, error) {
@@ -66,6 +71,11 @@ func Load() (Config, error) {
 	c.ClientIPHeader = strings.TrimSpace(os.Getenv("PUSHPORT_CLIENT_IP_HEADER"))
 	c.CORSOrigins = getenvCSV("PUSHPORT_CORS_ORIGIN")
 	c.WebPushAllowedHosts = getenvCSV("PUSHPORT_WEBPUSH_ALLOWED_HOSTS")
+	allowVAPID, err := strconv.ParseBool(getenv("PUSHPORT_ALLOW_VAPID", "false"))
+	if err != nil {
+		return c, errors.New("PUSHPORT_ALLOW_VAPID must be a boolean")
+	}
+	c.AllowVAPID = allowVAPID
 	rawSecret := os.Getenv("PUSHPORT_SECRET")
 	if rawSecret == "" {
 		return c, errors.New("PUSHPORT_SECRET is required")

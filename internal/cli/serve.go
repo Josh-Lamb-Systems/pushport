@@ -25,6 +25,7 @@ import (
 	"github.com/MunifTanjim/pushport/internal/settings"
 	"github.com/MunifTanjim/pushport/internal/transport"
 	"github.com/MunifTanjim/pushport/internal/turnstile"
+	"github.com/MunifTanjim/pushport/internal/vapid"
 )
 
 func newServeCmd() *cobra.Command {
@@ -153,6 +154,7 @@ func runServe() error {
 	device := api.NewDeviceHandler(sealSvc, apps, cfg.BaseURL, cfg.PushEndpoint.TTL, cfg.PushEndpoint.TTLMin, cfg.PushEndpoint.TTLMax)
 	device.SetRateLimit(subscribeLimiter, resolver)
 	device.SetWebPushPolicy(webpushPolicy)
+	device.SetAllowVAPID(cfg.AllowVAPID)
 	device.Routes(mux)
 
 	registration := api.NewInstanceRegistrationHandler(instances, apps, registerLimiter, resolver, cfg.AdminToken, verifier)
@@ -161,6 +163,13 @@ func runServe() error {
 
 	sendHandler := api.NewSendHandler(instances, sealSvc, retrying, cfg.MaxPayloadBytes)
 	sendHandler.SetAdmitter(gate)
+	if cfg.AllowVAPID {
+		audience, err := vapid.Audience(cfg.BaseURL)
+		if err != nil {
+			return err
+		}
+		sendHandler.SetVAPIDAudience(audience)
+	}
 	sendHandler.Routes(mux)
 
 	server := &http.Server{

@@ -45,6 +45,7 @@ PUSHPORT_WEBPUSH_ALLOWED_HOSTS=localhost,127.0.0.1,::1
 | ---------------------------- | ---------------- | ------------------------------------------- |
 | `PUSHPORT_PUSH_ENDPOINT_TTL` | `360h` (15 days) | Default lifetime of a sealed push endpoint. |
 | `PUSHPORT_MAX_PAYLOAD_BYTES` | `3000`           | Maximum request body size for a push send.  |
+| `PUSHPORT_ALLOW_VAPID`       | `false`          | Let devices bind a sender's VAPID key to their endpoint, so unmodified Web Push servers can send without an instance token. See [VAPID senders](/guide/sending#vapid-senders). |
 
 Endpoint TTLs must fall within a fixed window of **12 hours to 45 days**: a
 client requesting a TTL outside it is rejected, and `PUSHPORT_PUSH_ENDPOINT_TTL`

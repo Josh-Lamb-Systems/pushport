@@ -172,3 +172,21 @@ func TestLoadSecretInvalid(t *testing.T) {
 		}
 	})
 }
+
+func TestLoadAllowVAPID(t *testing.T) {
+	for val, want := range map[string]bool{"": false, "true": true, "false": false, "1": true} {
+		secretEnv(t)
+		t.Setenv("PUSHPORT_ADMIN_TOKEN", validAdminToken)
+		t.Setenv("PUSHPORT_ALLOW_VAPID", val)
+		c, err := Load()
+		if err != nil || c.AllowVAPID != want {
+			t.Fatalf("%q: AllowVAPID=%v err=%v, want %v", val, c.AllowVAPID, err, want)
+		}
+	}
+	secretEnv(t)
+	t.Setenv("PUSHPORT_ADMIN_TOKEN", validAdminToken)
+	t.Setenv("PUSHPORT_ALLOW_VAPID", "yes please")
+	if _, err := Load(); err == nil {
+		t.Fatal("accepted a non-boolean PUSHPORT_ALLOW_VAPID")
+	}
+}
