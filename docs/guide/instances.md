@@ -72,6 +72,11 @@ Content-Type: application/json
   (production). The flag is sealed into the endpoint, so it's fixed for the
   endpoint's lifetime. Sandbox builds of your app should subscribe with
   `sandbox: true`.
+- `vapid_key` is optional and needs `PUSHPORT_ALLOW_VAPID=true` on the relay.
+  It is the backend's VAPID public key (base64url, uncompressed P-256, as
+  served by the backend's Web Push config). It is sealed into the endpoint,
+  and that backend may then send with standard VAPID auth instead of an
+  instance token. See [VAPID senders](/guide/sending#vapid-senders).
 
 The response:
 

@@ -12,6 +12,7 @@ import (
 	"github.com/MunifTanjim/pushport/internal/ratelimit"
 	"github.com/MunifTanjim/pushport/internal/seal"
 	"github.com/MunifTanjim/pushport/internal/transport"
+	"github.com/MunifTanjim/pushport/internal/vapid"
 )
 
 var validTransports = map[string]bool{"apns": true, "fcm": true, "webpush": true}
@@ -28,6 +29,8 @@ type DeviceHandler struct {
 	resolver *ratelimit.Resolver
 
 	webpushPolicy transport.EndpointPolicy
+
+	allowVAPID bool
 }
 
 func NewDeviceHandler(s *seal.Service, a *app.Service, baseURL string, defaultTTL, minTTL, maxTTL time.Duration) *DeviceHandler {
@@ -39,6 +42,9 @@ func NewDeviceHandler(s *seal.Service, a *app.Service, baseURL string, defaultTT
 func (h *DeviceHandler) SetRateLimit(l *ratelimit.Limiter, resolver *ratelimit.Resolver) {
 	h.limiter, h.resolver = l, resolver
 }
+
+// SetAllowVAPID enables binding a sender's VAPID key into endpoints.
+func (h *DeviceHandler) SetAllowVAPID(allow bool) { h.allowVAPID = allow }
 
 // SetWebPushPolicy is optional; unset, the handler stays strict.
 func (h *DeviceHandler) SetWebPushPolicy(p transport.EndpointPolicy) {
@@ -67,6 +73,7 @@ func (h *DeviceHandler) subscribe(w http.ResponseWriter, r *http.Request) {
 		Token     string  `json:"token"`
 		TTL       *string `json:"ttl"`
 		Sandbox   bool    `json:"sandbox"`
+		VAPIDKey  string  `json:"vapid_key"`
 	}
 	if err := ReadRequestBodyJSON(w, r, &body, 16<<10); err != nil {
 		SendError(w, r, err)
@@ -82,6 +89,19 @@ func (h *DeviceHandler) subscribe(w http.ResponseWriter, r *http.Request) {
 			SendError(w, r, ErrorBadRequest().WithMessage(err.Error()))
 			return
 		}
+	}
+	vapidKey := ""
+	if body.VAPIDKey != "" {
+		if !h.allowVAPID {
+			SendError(w, r, ErrorBadRequest().WithMessage("vapid_key is not enabled on this relay"))
+			return
+		}
+		k, err := vapid.NormalizeKey(body.VAPIDKey)
+		if err != nil {
+			SendError(w, r, ErrorBadRequest().WithMessage("vapid_key must be a base64url uncompressed P-256 public key"))
+			return
+		}
+		vapidKey = k
 	}
 	// CurrentKey doubles as the app-existence check and confirms a usable sealing key.
 	if _, _, _, err := h.apps.CurrentKey(r.Context(), appID); err != nil {
@@ -114,6 +134,7 @@ func (h *DeviceHandler) subscribe(w http.ResponseWriter, r *http.Request) {
 		Exp:          exp,
 		JTI:          id.New(),
 		Sandbox:      body.Sandbox && body.Transport == "apns",
+		VAPIDKey:     vapidKey,
 	})
 	if err != nil {
 		SendError(w, r, ErrorInternalServerError().WithCause(err))

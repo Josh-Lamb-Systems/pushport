@@ -30,6 +30,37 @@ Topic: chat-message
 The body is capped at `PUSHPORT_MAX_PAYLOAD_BYTES` (3000 bytes by default,
 safely inside the 4 KB APNs payload limit).
 
+## VAPID Senders
+
+Many self-hosted backends already speak standard Web Push (RFC 8030) and
+authenticate with VAPID (RFC 8292) rather than a relay-specific token. With
+`PUSHPORT_ALLOW_VAPID=true`, such a backend can push to PushPort unmodified:
+
+1. The device fetches the backend's VAPID public key and passes it as
+   `vapid_key` when it [subscribes](/guide/instances#subscribing-a-device).
+2. The device gives the backend the endpoint plus its `p256dh` and `auth` keys,
+   exactly as a browser would.
+3. The backend sends a normal Web Push request:
+
+```
+POST /push/{endpoint_token}
+Authorization: vapid t=<JWT>, k=<backend VAPID public key>
+Content-Encoding: aes128gcm
+TTL: 86400
+
+<binary ciphertext>
+```
+
+PushPort accepts it only when `k` equals the key sealed into that endpoint, the
+JWT is ES256-signed by that key, its `aud` is this relay's origin (from
+`PUSHPORT_BASE_URL`), and its `exp` is in the future and at most 24 hours
+away. Anything else is `401`. Endpoints subscribed without `vapid_key` never
+accept VAPID, and instance tokens keep working on every endpoint.
+
+VAPID senders have no instance, so there is no per-backend kill switch: rate
+limits and daily quotas apply per VAPID key under the app's default instance
+plan, and their pushes count toward the app's totals in stats.
+
 ## Delivery Pipeline
 
 1. **Authenticates** the instance token: `401` if invalid.
